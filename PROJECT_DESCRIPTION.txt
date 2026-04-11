@@ -1,0 +1,45 @@
+                              VITALGUARD
+          AI-Powered Real-Time Patient Health Monitoring System
+
+
+WHAT IT DOES
+
+VitalGuard is a real-time health monitoring system that connects to a 
+wearable BLE sensor, analyzes patient vitals using AI, and automatically 
+triggers emergency calls when a critical condition is detected — all 
+through a live dashboard accessible to both patients and doctors.
+
+
+KEY FEATURES
+
+• REAL-TIME BLE VITALS — Captures Heart Rate, SpO2, Blood Pressure, and 
+  HRV from a MAX30102 sensor via Bluetooth. Includes a built-in simulation 
+  engine with presets (Normal, Tachycardia, Hypoxia, Critical) for demos.
+
+• AI CLASSIFICATION — A LangGraph agent powered by Groq (Llama 3.3 70B) 
+  classifies vitals as Normal, Future Alert, or Critical in real time, and 
+  generates patient-specific recommended actions.
+
+• AUTOMATIC EMERGENCY CALLS — On critical detection, the system calls ALL 
+  emergency contacts provided during onboarding using Twilio Voice API 
+  with text-to-speech. Falls back to a default number if none are set.
+
+• LIVE DASHBOARDS — Patient dashboard shows real-time vitals, AI alerts, 
+  charts, and a map. Admin dashboard shows all registered patients, their 
+  locations, doctor assignments, and a critical alert timeline.
+
+• ROLE-BASED AUTH & ONBOARDING — Firebase Authentication with Patient and 
+  Admin roles. Patients complete a multi-step onboarding capturing medical 
+  history, family history, emergency contacts, and geolocation.
+
+• WEBSOCKET STREAMING — Vitals and AI classifications are pushed instantly 
+  to dashboards via per-user WebSocket connections.
+
+
+TECH STACK
+
+Frontend  : React, TypeScript, Vite, Tailwind CSS, Recharts, Leaflet
+Backend   : FastAPI, SQLAlchemy, SQLite
+AI        : LangGraph, Groq (Llama 3.3 70B)
+Hardware  : ESP32 + MAX30102 (BLE)
+Services  : Firebase Auth, Twilio Voice API
