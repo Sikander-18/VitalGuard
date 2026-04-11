@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+websockets
+langgraph
+langchain-core
+langchain-ollama
+pydantic
+twilio
+python-dotenv

@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VitalGuard — AI Clinical Monitoring</title>
+    <meta name="description" content="Real-time AI-powered patient deterioration detection with MEWS scoring and predictive alerts.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💓</text></svg>">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- ── HEADER ────────────────────────────────────────────────── -->
+<header id="app-header">
+    <div class="header-left">
+        <div class="logo">
+            <span class="logo-icon">💓</span>
+            <h1>VitalGuard</h1>
+        </div>
+        <span class="tagline">AI Clinical Monitoring · MEWS Validated</span>
+    </div>
+    <div class="header-right">
+        <div class="mews-badge" id="mews-badge" title="Modified Early Warning Score">
+            <span class="mews-label">MEWS</span>
+            <span class="mews-value" id="mews-value">--</span>
+        </div>
+        <div class="llm-badge" id="llm-badge" title="AI validation source">
+            <span class="llm-dot"></span>
+            <span class="llm-label" id="llm-label">AI: --</span>
+        </div>
+        <div class="twilio-badge" id="twilio-badge" title="Twilio SMS Status">
+            <span class="twilio-dot"></span>
+            <span class="twilio-label">SMS: --</span>
+        </div>
+        <div class="connection-status" id="connection-status">
+            <span class="status-dot"></span>
+            <span class="status-text">Connecting...</span>
+        </div>
+        <div class="header-time" id="header-time"></div>
+    </div>
+</header>
+
+<!-- ── MAIN DASHBOARD ────────────────────────────────────────── -->
+<main id="dashboard">
+
+    <!-- Patient + Scenario Controls -->
+    <section class="controls-row">
+        <div class="patient-selector-wrap">
+            <label class="control-label">Patient Profile</label>
+            <select id="patient-selector" class="patient-selector">
+                <option value="healthy_adult">Healthy Adult (28 F)</option>
+                <option value="elderly_patient">Elderly (74 M, HTN)</option>
+                <option value="cardiac_patient">Cardiac (61 M, CHF)</option>
+                <option value="post_op">Post-Op (45 F, Day 1)</option>
+            </select>
+        </div>
+        <div class="scenario-controls">
+            <label class="control-label">Scenario</label>
+            <div class="scenario-buttons">
+                <button class="scenario-btn active" data-mode="normal">🟢 Normal</button>
+                <button class="scenario-btn" data-mode="mild_anomaly">🟡 Mild Anomaly</button>
+                <button class="scenario-btn" data-mode="critical_emergency">🔴 Critical</button>
+                <button class="scenario-btn" data-mode="auto">🔄 Auto Demo</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Predictive Trend Alert Banner -->
+    <div class="trend-alert-banner hidden" id="trend-alert-banner">
+        <span class="trend-alert-icon">⚡</span>
+        <span class="trend-alert-text" id="trend-alert-text">Predictive alert loading...</span>
+        <span class="trend-alert-badge">PREDICTIVE</span>
+    </div>
+
+    <!-- Vitals Grid -->
+    <section class="vitals-grid" id="vitals-grid">
+        <div class="vital-card" id="card-hr" data-metric="heart_rate">
+            <div class="vital-header">
+                <span class="vital-icon">❤️</span>
+                <span class="vital-name">Heart Rate</span>
+                <span class="vital-trend-indicator" id="trend-hr"></span>
+            </div>
+            <div class="vital-value-wrapper">
+                <span class="vital-value" id="val-hr">--</span>
+                <span class="vital-unit">bpm</span>
+            </div>
+            <div class="vital-range">Normal: 60–100 bpm</div>
+            <div class="chart-container"><canvas id="chart-hr"></canvas></div>
+            <div class="vital-bar-container"><div class="vital-bar" id="bar-hr"></div></div>
+        </div>
+        <div class="vital-card" id="card-spo2" data-metric="spo2">
+            <div class="vital-header">
+                <span class="vital-icon">🫁</span>
+                <span class="vital-name">SpO2</span>
+                <span class="vital-trend-indicator" id="trend-spo2"></span>
+            </div>
+            <div class="vital-value-wrapper">
+                <span class="vital-value" id="val-spo2">--</span>
+                <span class="vital-unit">%</span>
+            </div>
+            <div class="vital-range">Normal: 95–100%</div>
+            <div class="chart-container"><canvas id="chart-spo2"></canvas></div>
+            <div class="vital-bar-container"><div class="vital-bar" id="bar-spo2"></div></div>
+        </div>
+        <div class="vital-card" id="card-temp" data-metric="temperature">
+            <div class="vital-header">
+                <span class="vital-icon">🌡️</span>
+                <span class="vital-name">Temperature</span>
+                <span class="vital-trend-indicator" id="trend-temp"></span>
+            </div>
+            <div class="vital-value-wrapper">
+                <span class="vital-value" id="val-temp">--</span>
+                <span class="vital-unit">°C</span>
+            </div>
+            <div class="vital-range">Normal: 36.1–37.2°C</div>
+            <div class="chart-container"><canvas id="chart-temp"></canvas></div>
+            <div class="vital-bar-container"><div class="vital-bar" id="bar-temp"></div></div>
+        </div>
+        <div class="vital-card" id="card-hrv" data-metric="hrv">
+            <div class="vital-header">
+                <span class="vital-icon">📊</span>
+                <span class="vital-name">HRV</span>
+                <span class="vital-trend-indicator" id="trend-hrv"></span>
+            </div>
+            <div class="vital-value-wrapper">
+                <span class="vital-value" id="val-hrv">--</span>
+                <span class="vital-unit">ms</span>
+            </div>
+            <div class="vital-range">Normal: 20–70 ms</div>
+            <div class="chart-container"><canvas id="chart-hrv"></canvas></div>
+            <div class="vital-bar-container"><div class="vital-bar" id="bar-hrv"></div></div>
+        </div>
+    </section>
+
+    <!-- Middle Row: Risk + MEWS + Trends + Actions -->
+    <section class="middle-row">
+
+        <!-- Risk Gauge + MEWS -->
+        <div class="risk-gauge-container" id="risk-gauge-container">
+            <h3>Risk Assessment</h3>
+            <div class="risk-gauge" id="risk-gauge">
+                <svg viewBox="0 0 200 200" class="gauge-svg">
+                    <circle class="gauge-bg" cx="100" cy="100" r="85"/>
+                    <circle class="gauge-fill" id="gauge-fill" cx="100" cy="100" r="85"/>
+                </svg>
+                <div class="gauge-center">
+                    <span class="gauge-value" id="gauge-value">0</span>
+                    <span class="gauge-label" id="gauge-label">LOW</span>
+                </div>
+            </div>
+            <!-- MEWS breakdown -->
+            <div class="mews-breakdown" id="mews-breakdown">
+                <div class="mews-row">
+                    <span class="mews-title">MEWS Score</span>
+                    <span class="mews-score-big" id="mews-score-big">--/12</span>
+                </div>
+                <div class="mews-scale">
+                    <div class="mews-segment" data-range="0-2" title="Low concern">0–2</div>
+                    <div class="mews-segment" data-range="3-4" title="Moderate">3–4</div>
+                    <div class="mews-segment" data-range="5-6" title="High">5–6</div>
+                    <div class="mews-segment" data-range="7+" title="Critical">7+</div>
+                </div>
+                <div class="mews-cursor-wrap">
+                    <div class="mews-cursor" id="mews-cursor"></div>
+                </div>
+            </div>
+            <div class="risk-factors" id="risk-factors">
+                <p class="no-factors">All vitals normal</p>
+            </div>
+            <div class="validated-by" id="validated-by">Validated by: --</div>
+        </div>
+
+        <!-- Trend Analysis Panel -->
+        <div class="trend-panel" id="trend-panel">
+            <h3>Trend Analysis <span class="trend-window-label">(last 10 readings)</span></h3>
+            <div class="trend-grid">
+                <div class="trend-item" id="titem-hr">
+                    <span class="trend-vital-name">Heart Rate</span>
+                    <span class="trend-slope" id="tslope-hr">-- bpm/s</span>
+                    <div class="trend-sparkbar"><div class="trend-sparkfill" id="tbar-hr"></div></div>
+                </div>
+                <div class="trend-item" id="titem-spo2">
+                    <span class="trend-vital-name">SpO2</span>
+                    <span class="trend-slope" id="tslope-spo2">-- %/s</span>
+                    <div class="trend-sparkbar"><div class="trend-sparkfill" id="tbar-spo2"></div></div>
+                </div>
+                <div class="trend-item" id="titem-temp">
+                    <span class="trend-vital-name">Temperature</span>
+                    <span class="trend-slope" id="tslope-temp">-- °C/s</span>
+                    <div class="trend-sparkbar"><div class="trend-sparkfill" id="tbar-temp"></div></div>
+                </div>
+                <div class="trend-item" id="titem-hrv">
+                    <span class="trend-vital-name">HRV</span>
+                    <span class="trend-slope" id="tslope-hrv">-- ms/s</span>
+                    <div class="trend-sparkbar"><div class="trend-sparkfill" id="tbar-hrv"></div></div>
+                </div>
+            </div>
+            <div class="data-source-badge" id="data-source-badge">
+                📊 MIMIC-III derived · PhysioNet distributions
+            </div>
+        </div>
+
+        <!-- Actions Panel -->
+        <div class="actions-panel" id="actions-panel">
+            <h3>Autonomous Actions</h3>
+            <div class="actions-list" id="actions-list">
+                <div class="action-placeholder">
+                    <span class="placeholder-icon">🤖</span>
+                    <p>Agent monitoring. Actions appear when triggered.</p>
+                </div>
+            </div>
+        </div>
+
+    </section>
+
+    <!-- Explainability Trace Panel -->
+    <section class="trace-section" id="trace-section">
+        <div class="trace-header">
+            <h3>Agent Reasoning Trace
+                <span class="trace-badge" id="trace-badge">LangGraph · 4 nodes</span>
+            </h3>
+            <button class="trace-toggle-btn" id="trace-toggle-btn" onclick="toggleTrace()">Show trace ▼</button>
+        </div>
+        <div class="trace-steps hidden" id="trace-steps">
+            <div class="trace-step" id="trace-vitals-analyzer">
+                <div class="trace-node-label">① Vitals Analyzer</div>
+                <div class="trace-node-output" id="trace-out-1">Waiting for data...</div>
+            </div>
+            <div class="trace-arrow">↓</div>
+            <div class="trace-step" id="trace-anomaly-detector">
+                <div class="trace-node-label">② Anomaly Detector</div>
+                <div class="trace-node-output" id="trace-out-2">Waiting for data...</div>
+            </div>
+            <div class="trace-arrow">↓</div>
+            <div class="trace-step" id="trace-decision-maker">
+                <div class="trace-node-label">③ Decision Maker</div>
+                <div class="trace-node-output" id="trace-out-3">Waiting for data...</div>
+            </div>
+            <div class="trace-arrow">↓</div>
+            <div class="trace-step" id="trace-action-executor">
+                <div class="trace-node-label">④ Action Executor</div>
+                <div class="trace-node-output" id="trace-out-4">Waiting for data...</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Decision Log -->
+    <section class="decision-log-section" id="decision-log-section">
+        <div class="log-header">
+            <h3>Agent Decision Log</h3>
+            <span class="log-count" id="log-count">0 entries</span>
+        </div>
+        <div class="decision-log" id="decision-log">
+            <div class="log-placeholder"><p>Waiting for first reading...</p></div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── FOOTER ─────────────────────────────────────────────────── -->
+<footer id="app-footer">
+    <span>VitalGuard v2.0 — Team Code Conquerors</span>
+    <span>MEWS · LangGraph · Ollama llama3.1:8b · PhysioNet/MIMIC-III distributions</span>
+</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

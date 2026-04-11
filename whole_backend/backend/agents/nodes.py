@@ -73,42 +73,133 @@ def analyze_vitals(state: AgentState) -> AgentState:
 
 def handle_normal(state: AgentState) -> AgentState:
     print(f"[{state['user_id']}] Handled Normal: {state['reasoning']}")
+    from ..services.emergency import update_incident_state
+    update_incident_state("normal")
     return state
 
 def handle_future(state: AgentState) -> AgentState:
     print(f"[{state['user_id']}] Handled Future Alert: {state['reasoning']}")
+    
+    from ..services.emergency import emergency_service, try_fire, update_incident_state
+    update_incident_state("future_alert")
+    
+    # One-shot SMS to patient
+    if try_fire("sms_patient"):
+        vitals = state.get("vitals", {})
+        sms_body = (
+            f"⚠️ VitalGuard Health Alert\n"
+            f"Patient: {settings.PATIENT_NAME}\n"
+            f"HR: {vitals.get('bpm', '--')} bpm | SpO2: {vitals.get('spo2', '--')}%\n"
+            f"BP: {vitals.get('systolic', '--')}/{vitals.get('diastolic', '--')} mmHg\n"
+            f"Concern: {state.get('reasoning', 'Vitals trending abnormal')}\n"
+            f"Please check your vitals. Contact a doctor if you feel unwell."
+        )
+        target = settings.PATIENT_PHONE or settings.TWILIO_TARGET_PHONE_NUMBER
+        if target:
+            emergency_service.trigger_sms(target, sms_body)
+    else:
+        print(f"[{state['user_id']}] Patient SMS already sent this incident — skipped")
+    
     return state
 
 def handle_critical(state: AgentState) -> AgentState:
     print(f"[{state['user_id']}] !!! CRITICAL NODE TRIGGERED !!!")
     
-    # Real Emergency Contacts from Onboarding
+    from ..services.emergency import emergency_service, try_fire, update_incident_state, unfire
+    update_incident_state("critical")
+    
+    vitals = state.get("vitals", {})
+    reasoning = state.get("reasoning", "Critical vitals detected")
+    
+    # Resolve emergency contacts: onboarding contacts + config fallback (deduped)
     user_contacts_raw = state.get("emergency_contacts", "[]")
     try:
-        # DB stores it as JSON string like '[{"name":"X", "phone":"Y"}]'
         contacts = json.loads(user_contacts_raw)
     except:
         contacts = []
-
-    if contacts and len(contacts) > 0:
-        print(f"[{state['user_id']}] Found {len(contacts)} user contacts. Initiating calls...")
-        message = f"Emergency Alert! Vital Guard has detected a critical health condition for {state.get('user_id')}. Reasoning: {state['reasoning']}. Please check the dashboard immediately."
-        
-        for contact in contacts:
-            phone = contact.get("phone")
-            name = contact.get("name", "Emergency Contact")
-            if phone:
-                print(f"[{state['user_id']}] Calling {name} at {phone}...")
-                emergency_service.trigger_call(phone, message)
+    
+    # Build target phone list — collect all available numbers, dedup by phone
+    seen_phones = set()
+    target_phones = []
+    
+    # 1. Onboarding contacts first
+    if contacts:
+        for c in contacts:
+            phone = c.get("phone")
+            if phone and phone not in seen_phones:
+                target_phones.append({"name": c.get("name", "Contact"), "phone": phone})
+                seen_phones.add(phone)
+    
+    # 2. Always add config fallback (verified number) if not already in list
+    config_phone = settings.EMERGENCY_CONTACT_PHONE or settings.TWILIO_TARGET_PHONE_NUMBER
+    if config_phone and config_phone not in seen_phones:
+        target_phones.append({"name": settings.EMERGENCY_CONTACT_NAME, "phone": config_phone})
+        seen_phones.add(config_phone)
+    
+    # ── 1. ONE-SHOT SMS to emergency contacts ────────────────────
+    if try_fire("sms_emergency"):
+        sms_body = (
+            f"🚨 EMERGENCY — VitalGuard Alert\n"
+            f"Patient: {settings.PATIENT_NAME}\n"
+            f"HR: {vitals.get('bpm', '--')} bpm | SpO2: {vitals.get('spo2', '--')}%\n"
+            f"BP: {vitals.get('systolic', '--')}/{vitals.get('diastolic', '--')} mmHg\n"
+            f"HRV: {vitals.get('hrv', '--')} ms\n"
+            f"Reason: {reasoning}\n"
+            f"Emergency services have been alerted. Please respond immediately."
+        )
+        any_sms_success = False
+        for contact in target_phones:
+            print(f"[{state['user_id']}] SMS → {contact['name']} at {contact['phone']}")
+            result = emergency_service.trigger_sms(contact["phone"], sms_body)
+            if result.get("mode") == "live":
+                any_sms_success = True
+        # If ALL SMS failed, unfire so next attempt can retry
+        if not any_sms_success:
+            unfire("sms_emergency")
+            print(f"[{state['user_id']}] All SMS failed — lock reset for retry")
     else:
-        # Fallback to default if no user contacts found
-        target = settings.TWILIO_TARGET_PHONE_NUMBER
-        print(f"[{state['user_id']}] No user contacts. Fallback to settings: '{target}'")
-        
-        if target:
-            message = f"Alert! Pulse Guard has detected a critical condition for patient {state['user_id']}. Reasoning: {state['reasoning']}."
-            emergency_service.trigger_call(target, message)
-        else:
-            print(f"[{state['user_id']}] SKIP CALL: No phone numbers available anywhere!")
-        
+        print(f"[{state['user_id']}] Emergency SMS already sent this incident — skipped")
+    
+    # ── 2. ONE-SHOT VOICE CALL to emergency contacts ─────────────
+    if try_fire("voice_emergency"):
+        voice_message = (
+            f"Emergency alert from Vital Guard. "
+            f"{settings.PATIENT_NAME} is experiencing a critical health event. "
+            f"Heart rate is {vitals.get('bpm', 'unknown')} beats per minute. "
+            f"Oxygen level is {vitals.get('spo2', 'unknown')} percent. "
+            f"Please respond immediately."
+        )
+        any_call_success = False
+        for contact in target_phones:
+            print(f"[{state['user_id']}] CALL → {contact['name']} at {contact['phone']}")
+            result = emergency_service.trigger_call(contact["phone"], voice_message)
+            if result.get("mode") == "live":
+                any_call_success = True
+        if not any_call_success:
+            unfire("voice_emergency")
+            print(f"[{state['user_id']}] All calls failed — lock reset for retry")
+    else:
+        print(f"[{state['user_id']}] Emergency voice call already placed this incident — skipped")
+    
+    # ── 3. ONE-SHOT EMAIL to doctor ──────────────────────────────
+    if try_fire("email_doctor"):
+        subject = f"[VitalGuard] 🚨 CRITICAL — {settings.PATIENT_NAME}"
+        body = (
+            f"Dear Doctor,\n\n"
+            f"VitalGuard has detected a CRITICAL health condition for patient {settings.PATIENT_NAME}.\n\n"
+            f"Patient Vitals at time of alert:\n"
+            f"  Heart Rate:       {vitals.get('bpm', '--')} bpm\n"
+            f"  SpO2:             {vitals.get('spo2', '--')}%\n"
+            f"  Blood Pressure:   {vitals.get('systolic', '--')}/{vitals.get('diastolic', '--')} mmHg\n"
+            f"  HRV:              {vitals.get('hrv', '--')} ms\n\n"
+            f"AI Reasoning: {reasoning}\n\n"
+            f"Emergency contacts have been notified.\n"
+            f"Please take immediate action.\n\n"
+            f"— VitalGuard System"
+        )
+        emergency_service.send_doctor_email(subject, body)
+    else:
+        print(f"[{state['user_id']}] Doctor email already sent this incident — skipped")
+    
     return state
+

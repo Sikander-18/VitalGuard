@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Heart, Wind, Gauge, Activity, Clock, ShieldCheck, ShieldAlert, MapPin, Navigation, Zap } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Heart, Wind, Gauge, Activity, Clock, ShieldCheck, ShieldAlert, MapPin, Navigation, Zap, FlaskConical, Loader2 } from "lucide-react";
 import Navbar from "@/components/vitalguard/Navbar";
 import VitalCard from "@/components/vitalguard/VitalCard";
 import RiskIndicator from "@/components/vitalguard/RiskIndicator";
@@ -10,6 +10,18 @@ import AlertTimeline from "@/components/vitalguard/AlertTimeline";
 import { currentUser, doctors, alerts } from "@/data/mockData";
 import { useVitals } from "@/hooks/useVitals";
 import { useAuth } from "@/context/AuthContext";
+
+type SimScenario = "normal" | "mild_anomaly" | "critical" | "random";
+
+interface SimResult {
+  scenario: string;
+  ai_condition: string | null;
+  ai_severity: string | null;
+  ai_reasoning: string | null;
+  ai_actions: string[];
+  vitals_injected: Record<string, number>;
+  message: string;
+}
 
 const UserDashboard = () => {
   const { user: authUser } = useAuth();
@@ -59,6 +71,37 @@ const UserDashboard = () => {
     hrv: typeof h.hrv === "number" ? h.hrv : 0,
   })).reverse();
 
+  // ── Simulate Data ─────────────────────────────────────────────
+  const [simLoading, setSimLoading] = useState<SimScenario | null>(null);
+  const [simResult, setSimResult] = useState<SimResult | null>(null);
+
+  const simulateScenario = useCallback(async (scenario: SimScenario) => {
+    setSimLoading(scenario);
+    setSimResult(null);
+    try {
+      const res = await fetch(
+        `http://localhost:8000/simulate/scenario?scenario=${scenario}&user_id=${activeUser.id}`,
+        { method: "POST" }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: SimResult = await res.json();
+      setSimResult(data);
+    } catch (err) {
+      console.error("Simulate error:", err);
+      setSimResult({
+        scenario,
+        ai_condition: null,
+        ai_severity: null,
+        ai_reasoning: "Failed to connect to backend. Is the server running on port 8000?",
+        ai_actions: [],
+        vitals_injected: {},
+        message: "❌ Simulation failed — backend unreachable.",
+      });
+    } finally {
+      setSimLoading(null);
+    }
+  }, [activeUser.id]);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -95,6 +138,91 @@ const UserDashboard = () => {
               {backendConnected ? "AI Engine Online" : "AI Engine Offline"}
             </div>
           </div>
+        </div>
+
+        {/* ── Simulate Data Panel ─────────────────────────────── */}
+        <div className="bg-card rounded-xl border border-border/50 shadow-sm p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <FlaskConical className="w-5 h-5 text-primary" />
+              <h3 className="text-sm font-semibold text-foreground">Simulate Data</h3>
+            </div>
+            <span className="text-[10px] text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">Demo Mode</span>
+          </div>
+          <p className="text-xs text-muted-foreground mb-4">
+            Inject simulated vital signs to trigger the AI agent pipeline and demonstrate autonomous actions (SMS, Call, Email).
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {([
+              { key: "normal" as SimScenario, label: "Normal", emoji: "🟢", desc: "Healthy vitals" },
+              { key: "mild_anomaly" as SimScenario, label: "Mild Anomaly", emoji: "🟡", desc: "Elevated risk" },
+              { key: "critical" as SimScenario, label: "Critical", emoji: "🔴", desc: "Emergency" },
+              { key: "random" as SimScenario, label: "Random", emoji: "🎲", desc: "Surprise" },
+            ]).map((s) => (
+              <button
+                key={s.key}
+                onClick={() => simulateScenario(s.key)}
+                disabled={simLoading !== null}
+                className={`relative flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-all duration-200 ${
+                  simLoading === s.key
+                    ? "bg-primary/10 border-primary/30 scale-95"
+                    : "bg-secondary/30 border-border/50 hover:bg-secondary/60 hover:border-primary/20 hover:scale-[1.02]"
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {simLoading === s.key ? (
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                ) : (
+                  <span className="text-lg">{s.emoji}</span>
+                )}
+                <span className="text-xs font-medium">{s.label}</span>
+                <span className="text-[9px] text-muted-foreground">{s.desc}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Simulate Result Feedback */}
+          {simResult && (
+            <div className={`mt-4 p-4 rounded-lg border text-sm space-y-2 animate-in fade-in slide-in-from-top-2 duration-300 ${
+              simResult.ai_condition === "critical"
+                ? "bg-red-500/10 border-red-500/30 text-red-300"
+                : simResult.ai_condition === "future_alert"
+                ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                : simResult.ai_condition === "normal"
+                ? "bg-green-500/10 border-green-500/30 text-green-300"
+                : "bg-secondary border-border/50 text-muted-foreground"
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-xs uppercase tracking-wide">
+                  {simResult.ai_condition === "critical" ? "🚨 Critical Alert"
+                    : simResult.ai_condition === "future_alert" ? "⚠️ Future Alert"
+                    : simResult.ai_condition === "normal" ? "✅ Normal"
+                    : "📊 Result"}
+                </span>
+                <span className="text-[10px] opacity-70">Severity: {simResult.ai_severity || "--"}</span>
+              </div>
+              {simResult.ai_reasoning && (
+                <p className="text-xs opacity-90">{simResult.ai_reasoning}</p>
+              )}
+              {simResult.ai_actions && simResult.ai_actions.length > 0 && (
+                <div className="pt-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider opacity-60">AI Actions:</span>
+                  <ul className="mt-1 space-y-0.5">
+                    {simResult.ai_actions.map((a, i) => (
+                      <li key={i} className="text-[11px] opacity-80 flex items-start gap-1">
+                        <span className="mt-0.5">→</span> {a}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div className="flex gap-3 pt-1 text-[10px] opacity-60">
+                {simResult.vitals_injected.bpm && <span>HR: {simResult.vitals_injected.bpm} bpm</span>}
+                {simResult.vitals_injected.spo2 && <span>SpO2: {simResult.vitals_injected.spo2}%</span>}
+                {simResult.vitals_injected.systolic && <span>BP: {simResult.vitals_injected.systolic}/{simResult.vitals_injected.diastolic}</span>}
+                {simResult.vitals_injected.hrv && <span>HRV: {simResult.vitals_injected.hrv}ms</span>}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Vital Cards */}
