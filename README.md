@@ -1,106 +1,115 @@
-# 🛡️ VitalGuard: Predictive Health & Emergency Response
+# VitalGuard
 
-VitalGuard (formerly PulseGuard AI) is a next-generation healthcare platform that bridges the gap between wearable hardware and clinical intervention. It provides real-time vital sign monitoring, AI-driven risk assessment, and automated emergency response.
+**AI-Powered Real-Time Patient Health Monitoring System**
 
----
-
-## 🚀 System Architecture
-
-VitalGuard is composed of three primary layers working in sync:
-
-1.  **Frontend Dashboard (React)**: High-performance monitoring interface for patients and medical staff.
-2.  **FastAPI Backend**: The "brain" of the system, handling data persistence, Twilio-powered alerts, and Groq-powered AI reasoning.
-3.  **Real-time Relay Agent (BLE Agent)**: A specialized Python worker that interfaces with wearable hardware via Bluetooth Low Energy (BLE) and streams data to the core backend.
+VitalGuard connects to a wearable BLE sensor, analyzes patient vitals using AI, and automatically triggers emergency calls when a critical condition is detected — all through a live dashboard accessible to both patients and doctors.
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-### 🩺 Advanced Monitoring
-- **Live Vitals**: Track Heart Rate, SpO2, Blood Pressure, and HRV in real-time.
-- **Dynamic Trend Graphs**: Visual health history using high-performance charting.
-- **Hardware Integration**: Direct BLE connection to sensor-equipped wearables.
+- **Real-Time BLE Vitals** — Captures Heart Rate, SpO2, Blood Pressure, and HRV from a MAX30102 sensor via Bluetooth. Includes a built-in simulation engine with presets (Normal, Tachycardia, Hypoxia, Critical) for demos.
 
-### 🧠 AI & Automation
-- **Groq Health Reasoning**: Uses LLMs (via Groq API) to analyze vital trends and provide actionable health insights.
-- **Risk Triage**: Automatic classification of patient status (Normal → Future Alert → Critical).
-- **Smart SMS Alerts**: Automated Twilio integration for emergency notifications to doctors and family.
+- **AI Classification** — A LangGraph agent powered by Groq (Llama 3.3 70B) classifies vitals as Normal, Future Alert, or Critical in real time, and generates patient-specific recommended actions.
 
-### 🏥 Clinical Workflow
-- **Medical Onboarding**: Multi-step patient onboarding capturing medical history, baseline stats, and emergency contacts.
-- **Doctor Dashboard**: Admin view for monitoring multiple patients with risk-sorted priority.
-- **Care Zone Mapping**: Geo-location tracking of patients and doctors using MapLibre GL.
-- **Doctor Assignment**: Seamlessly assign available medical staff to critical cases.
+- **Automatic Emergency Calls** — On critical detection, the system calls ALL emergency contacts provided during onboarding using Twilio Voice API with text-to-speech.
+
+- **Live Dashboards** — Patient dashboard shows real-time vitals, AI alerts, charts, and a map. Admin dashboard shows all registered patients, their locations, doctor assignments, and alerts.
+
+- **Role-Based Auth & Onboarding** — Firebase Authentication with Patient and Admin roles. Multi-step onboarding captures medical history, family history, emergency contacts, and geolocation.
+
+- **WebSocket Streaming** — AI-classified vitals are pushed instantly to dashboards via per-user WebSocket connections.
 
 ---
 
-## 🛠️ Technology Stack
+## Tech Stack
 
-| Layer | Tech Stack |
-| :--- | :--- |
-| **Frontend** | React 18, TypeScript, Vite, Tailwind CSS, Recharts, MapLibre GL |
-| **Backend** | FastAPI, SQLAlchemy, SQLite (aiosqlite), Pydantic |
-| **AI/LLM** | Groq Cloud, LangChain/LangGraph |
-| **Communications** | Twilio API (SMS/Voice) |
-| **Hardware Link** | Python, Bleak (BLE), Flask (Relay API) |
-| **Auth/Identity** | Firebase Authentication |
+| Layer     | Technology                                      |
+|-----------|--------------------------------------------------|
+| Frontend  | React 18, TypeScript, Vite, Tailwind CSS, Recharts, Leaflet |
+| Backend   | FastAPI, SQLAlchemy (async), SQLite              |
+| AI        | LangGraph, Groq API (Llama 3.3 70B)             |
+| Hardware  | ESP32 + MAX30102 Sensor (BLE)                    |
+| Auth      | Firebase Authentication                          |
+| Alerts    | Twilio Voice API                                 |
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
-```bash
+```
 VitalGuard/
-├── src/                # React Frontend
-│   ├── components/     # UI Primitives & Health-specific components
-│   ├── pages/          # Onboarding, User & Admin Dashboards
-│   ├── hooks/          # Custom data-fetching & vital-tracking hooks
-│   └── lib/            # Utilities (App logic, map config)
-├── whole_backend/      # FastAPI Server
-│   ├── backend/        # Multi-agent logic (Groq), Database schemas, Twilio service
-│   └── main.py         # Backend entry point
-└── VG_Real_data/       # BLE Relay Agent
-    ├── app2.py         # Main Flask + Bleak hardware bridge
-    └── run.py          # Relay startup script
+├── src/                        # React Frontend
+│   ├── components/             # UI Components (VitalCard, MapComponent, etc.)
+│   ├── pages/                  # Auth, Onboarding, UserDashboard, AdminDashboard
+│   ├── hooks/                  # useVitals (real-time data hook)
+│   ├── context/                # AuthContext (Firebase)
+│   ├── config/                 # Firebase config
+│   └── data/                   # Mock data (fallback)
+├── whole_backend/              # FastAPI Backend
+│   └── backend/
+│       ├── agents/             # LangGraph AI pipeline (nodes, graph)
+│       ├── db/                 # SQLAlchemy models & database
+│       ├── engine/             # Rule engine for anomaly detection
+│       ├── routes/             # REST endpoints (users, vitals, alerts, doctors)
+│       ├── services/           # Emergency (Twilio) & WebSocket managers
+│       ├── config.py           # Environment config
+│       ├── schemas.py          # Pydantic schemas
+│       └── main.py             # FastAPI app entry
+├── VG_Real_data/               # BLE Hardware Relay
+│   ├── app2.py                 # BLE + Simulation relay server (Flask)
+│   └── requirements.txt        # Python dependencies
+├── PROJECT_DESCRIPTION.txt     # Judge-friendly feature summary
+└── README.md                   # This file
 ```
 
 ---
 
-## 🚦 Getting Started
+## Setup & Run
 
-### 1. Backend Setup
+### 1. Frontend
+```bash
+npm install
+npm run dev            # Runs on http://localhost:8080
+```
+
+### 2. Backend
 ```bash
 cd whole_backend
 pip install -r requirements.txt
-# Configure your .env with GROQ_API_KEY and TWILIO credentials
-uvicorn backend.main:app --port 8000
 ```
 
-### 2. Frontend Setup
+Create `whole_backend/.env`:
+```env
+GROQ_API_KEY=your_groq_api_key
+TWILIO_ACCOUNT_SID=your_sid
+TWILIO_AUTH_TOKEN=your_token
+TWILIO_PHONE_NUMBER=+1xxxxxxxxxx
+TWILIO_TARGET_PHONE_NUMBER=+91xxxxxxxxxx
+```
+
 ```bash
-# Root directory
-npm install
-npm run dev
+python -m uvicorn backend.main:app --port 8000
 ```
 
-### 3. Hardware Relay (Optional)
-*Requires a compatible BLE device.*
+### 3. BLE Relay (Hardware / Simulation)
 ```bash
 cd VG_Real_data
 pip install -r requirements.txt
-python app2.py
+python app2.py         # Runs on http://localhost:5000
+```
+
+Toggle simulation mode:
+```bash
+curl -X POST http://localhost:5000/toggle-simulation -H "Content-Type: application/json" -d '{"preset": "CRITICAL"}'
 ```
 
 ---
 
-## 📡 API & Data Flow
-1. **Wearable** sends raw packets via BLE.
-2. **Relay Agent** (`app2.py`) parses packets and calculates metrics (HR, HRV, BP).
-3. **Relay Agent** forwards data to **FastAPI** (`/vitals/` endpoint).
-4. **FastAPI** stores data, triggers **Groq AI** for risk analysis, and sends **Twilio** alerts if "Critical" risk is detected.
-5. **Frontend** polls the FastAPI backend for real-time dashboard updates.
+## How It Works
 
----
-
-## 📜 License
-This project is licensed under the MIT License.
+1. **Sensor → Relay** — BLE sensor streams vitals to `app2.py` (or simulation generates them).
+2. **Relay → Backend** — Relay forwards data to FastAPI every 30 seconds.
+3. **Backend → AI** — Rule engine detects anomalies → LangGraph agent classifies severity.
+4. **Backend → Alert** — On critical, Twilio calls all emergency contacts.
+5. **Backend → Dashboard** — WebSocket pushes classified vitals to the React frontend in real time.
