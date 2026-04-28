@@ -34,27 +34,27 @@ VitalGuard connects to a wearable BLE sensor, analyzes patient vitals using AI, 
 
 ```
 VitalGuard/
-├── src/                        # React Frontend
-│   ├── components/             # UI Components (VitalCard, MapComponent, etc.)
-│   ├── pages/                  # Auth, Onboarding, UserDashboard, AdminDashboard
-│   ├── hooks/                  # useVitals (real-time data hook)
-│   ├── context/                # AuthContext (Firebase)
-│   ├── config/                 # Firebase config
-│   └── data/                   # Mock data (fallback)
-├── whole_backend/              # FastAPI Backend
-│   └── backend/
-│       ├── agents/             # LangGraph AI pipeline (nodes, graph)
-│       ├── db/                 # SQLAlchemy models & database
-│       ├── engine/             # Rule engine for anomaly detection
-│       ├── routes/             # REST endpoints (users, vitals, alerts, doctors)
-│       ├── services/           # Emergency (Twilio) & WebSocket managers
-│       ├── config.py           # Environment config
-│       ├── schemas.py          # Pydantic schemas
-│       └── main.py             # FastAPI app entry
-├── VG_Real_data/               # BLE Hardware Relay
-│   ├── app2.py                 # BLE + Simulation relay server (Flask)
+├── frontend/                   # React Frontend (Vite)
+│   ├── src/                    # UI Components, Pages, Hooks, Context
+│   ├── public/                 # Static assets
+│   ├── .env.example            # Environment variables template
+│   └── package.json            # Node dependencies
+├── server/                     # FastAPI Backend
+│   ├── backend/                # Core logic
+│   │   ├── agents/             # LangGraph AI pipeline (nodes, graph)
+│   │   ├── db/                 # SQLAlchemy models & database
+│   │   ├── engine/             # Rule engine for anomaly detection
+│   │   ├── routes/             # REST endpoints
+│   │   ├── services/           # Emergency (Twilio) & WebSocket managers
+│   │   ├── config.py           # Environment config
+│   │   ├── schemas.py          # Pydantic schemas
+│   │   └── main.py             # FastAPI app entry
+│   ├── .env.example            # Environment variables template
 │   └── requirements.txt        # Python dependencies
-├── PROJECT_DESCRIPTION.txt     # Judge-friendly feature summary
+├── ble-relay/                  # BLE Hardware Relay
+│   ├── relay.py                # BLE + Simulation relay server (Flask)
+│   └── requirements.txt        # Python dependencies
+├── start.bat                   # Master launcher script
 └── README.md                   # This file
 ```
 
@@ -62,40 +62,40 @@ VitalGuard/
 
 ## Setup & Run
 
-### 1. Frontend
+We provide a convenient `start.bat` script to launch all services at once. Alternatively, you can run them individually as described below.
+
+### Quick Start (Windows)
+```bash
+# Just run the batch script!
+.\start.bat
+```
+
+### Manual Setup
+
+#### 1. Frontend
 
 ```bash
+cd frontend
 npm install
+cp .env.example .env   # Fill in your Firebase config
 npm run dev            # Runs on http://localhost:8080
 ```
 
-### 2. Backend
+#### 2. Backend
 
 ```bash
-cd whole_backend
+cd server
 pip install -r requirements.txt
-```
-
-Create `whole_backend/.env`:
-
-```env
-GROQ_API_KEY=your_groq_api_key
-TWILIO_ACCOUNT_SID=your_sid
-TWILIO_AUTH_TOKEN=your_token
-TWILIO_PHONE_NUMBER=+1xxxxxxxxxx
-TWILIO_TARGET_PHONE_NUMBER=+91xxxxxxxxxx
-```
-
-```bash
+cp .env.example .env   # Fill in your Groq, Twilio, and SMTP config
 python -m uvicorn backend.main:app --port 8000
 ```
 
-### 3. BLE Relay (Hardware / Simulation)
+#### 3. BLE Relay (Hardware / Simulation)
 
 ```bash
-cd VG_Real_data
+cd ble-relay
 pip install -r requirements.txt
-python app2.py         # Runs on http://localhost:5000
+python relay.py         # Runs on http://localhost:5000
 ```
 
 Toggle simulation mode:
@@ -108,7 +108,7 @@ curl -X POST http://localhost:5000/toggle-simulation -H "Content-Type: applicati
 
 ## How It Works
 
-1. **Sensor → Relay** — BLE sensor streams vitals to `app2.py` (or simulation generates them).
+1. **Sensor → Relay** — BLE sensor streams vitals to `relay.py` (or simulation generates them).
 2. **Relay → Backend** — Relay forwards data to FastAPI every 30 seconds.
 3. **Backend → AI** — Rule engine detects anomalies → LangGraph agent classifies severity.
 4. **Backend → Alert** — On critical, Twilio calls all emergency contacts.

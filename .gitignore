@@ -1,15 +1,24 @@
 # ==================== Dependencies ====================
 node_modules/
+.npm/
+venv/
 .venv/
+env/
 __pycache__/
 *.py[cod]
+*$py.class
 *.egg-info/
+
 
 # ==================== Build Output ====================
 dist/
 dist-ssr/
 build/
+out/
 wheels/
+.next/
+.vercel/
+
 
 # ==================== Environment ====================
 .env
@@ -51,19 +60,17 @@ pyproject.toml
 
 # ==================== Test / Coverage ====================
 coverage/
-src/test/
+.pytest_cache/
+.coverage
+htmlcov/
+
 
 # ==================== Misc ====================
 *.tsbuildinfo
 scratch/
 components.json
 
-# ==================== Deprecated / Legacy ====================
-VG_Real_data/app.py
-VG_Real_data/test.py
-VG_Real_data/run.py
-VG_Real_data/watch.py
-VG_Real_data/index.html
-whole_backend/main.py
-whole_backend/README.md
-whole_backend/.gitignore
+# ==================== Runtime / Generated ====================
+server/sms_log.txt
+*.log
+.ruff_cache/
