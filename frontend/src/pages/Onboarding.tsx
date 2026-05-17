@@ -88,9 +88,6 @@ const Onboarding = () => {
     e.preventDefault();
     setLoading(true);
 
-    const lat = location?.lat || 0;
-    const lng = location?.lng || 0;
-
     // Validate family history (required)
     const familyAnySelected = Object.values(familyConditions).some(v => v);
     if (!familyAnySelected) {
@@ -115,8 +112,8 @@ const Onboarding = () => {
       age: parseInt(formData.age) || 0,
       gender: formData.gender,
       phone: contacts[0]?.phone || "0000000000", 
-      location_lat: lat,
-      location_lng: lng,
+      location_lat: location?.lat ?? null,
+      location_lng: location?.lng ?? null,
       emergency_contacts: JSON.stringify(contacts),
       medical_history: personalHistory.join(", "),
       family_medical_history: familyHistory.join(", ")

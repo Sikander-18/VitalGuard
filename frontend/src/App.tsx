@@ -22,14 +22,14 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/auth" replace />} />
             <Route path="/auth" element={<Auth />} />
-            
+
             <Route element={<ProtectedRoute />}>
               <Route path="/onboarding" element={<Onboarding />} />
-              
+
               <Route element={<RoleRoute allowedRole="user" />}>
                 <Route path="/user" element={<UserDashboard />} />
               </Route>
-              
+
               <Route element={<RoleRoute allowedRole="admin" />}>
                 <Route path="/admin" element={<AdminDashboard />} />
               </Route>

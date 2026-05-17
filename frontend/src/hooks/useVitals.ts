@@ -278,7 +278,11 @@ export const useVitals = (userId: string = "U002") => {
                   condition: data.condition || "normal",
                   severity: data.severity || "low",
                   reasoning: data.reasoning || data.vitals_interpretation || "",
-                  actions: data.actions ? (typeof data.actions === "string" ? JSON.parse(data.actions) : data.actions) : [],
+                  actions: (() => {
+                    if (!data.actions) return [];
+                    if (typeof data.actions !== "string") return data.actions;
+                    try { return JSON.parse(data.actions); } catch { return [String(data.actions)]; }
+                  })(),
                 });
                 break;
 
@@ -311,11 +315,19 @@ export const useVitals = (userId: string = "U002") => {
               default:
                 // Legacy: handle messages without type wrapper
                 if (data.condition) {
+                  let parsedActions: string[] = [];
+                  if (data.actions) {
+                    try {
+                      parsedActions = JSON.parse(data.actions);
+                    } catch {
+                      parsedActions = [String(data.actions)];
+                    }
+                  }
                   setAiClassification({
                     condition: data.condition,
                     severity: data.severity || "low",
                     reasoning: data.reasoning || "",
-                    actions: data.actions ? JSON.parse(data.actions) : [],
+                    actions: parsedActions,
                   });
                 }
             }

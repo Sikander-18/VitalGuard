@@ -37,7 +37,6 @@ VitalGuard/
 ├── frontend/                   # React Frontend (Vite)
 │   ├── src/                    # UI Components, Pages, Hooks, Context
 │   ├── public/                 # Static assets
-│   ├── .env.example            # Environment variables template
 │   └── package.json            # Node dependencies
 ├── server/                     # FastAPI Backend
 │   ├── backend/                # Core logic
@@ -49,11 +48,11 @@ VitalGuard/
 │   │   ├── config.py           # Environment config
 │   │   ├── schemas.py          # Pydantic schemas
 │   │   └── main.py             # FastAPI app entry
-│   ├── .env.example            # Environment variables template
 │   └── requirements.txt        # Python dependencies
 ├── ble-relay/                  # BLE Hardware Relay
 │   ├── relay.py                # BLE + Simulation relay server (Flask)
 │   └── requirements.txt        # Python dependencies
+├── .env.example                # Shared environment variables template
 ├── start.bat                   # Master launcher script
 └── README.md                   # This file
 ```
@@ -72,25 +71,31 @@ We provide a convenient `start.bat` script to launch all services at once. Alter
 
 ### Manual Setup
 
-#### 1. Frontend
+#### 1. Environment
+
+```bash
+cp .env.example .env   # Fill in Firebase, Groq, Twilio, and SMTP config
+```
+
+Both the frontend and backend read from this single root `.env` file.
+
+#### 2. Frontend
 
 ```bash
 cd frontend
 npm install
-cp .env.example .env   # Fill in your Firebase config
 npm run dev            # Runs on http://localhost:8080
 ```
 
-#### 2. Backend
+#### 3. Backend
 
 ```bash
 cd server
 pip install -r requirements.txt
-cp .env.example .env   # Fill in your Groq, Twilio, and SMTP config
 python -m uvicorn backend.main:app --port 8000
 ```
 
-#### 3. BLE Relay (Hardware / Simulation)
+#### 4. BLE Relay (Hardware / Simulation)
 
 ```bash
 cd ble-relay

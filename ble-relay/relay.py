@@ -254,3 +254,4 @@ if __name__ == "__main__":
     threading.Thread(target=simulation_worker, daemon=True).start()
     # Start Flask
     app.run(port=5000, host="0.0.0.0", debug=False)
+

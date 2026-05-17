@@ -7,12 +7,64 @@ Falls back to static DB if API is unavailable.
 import math
 import logging
 import httpx
-from typing import List, Dict, Optional
+from typing import Any, List, Dict, Optional, Tuple
 
 logger = logging.getLogger("vitalguard.location")
 
 # ── Cache to avoid spamming Overpass API ──────────────────────────
 _cache: Dict[str, List[Dict]] = {}
+
+DEMO_OR_PLACEHOLDER_COORDS = {
+    (0.0, 0.0),
+    (17.385, 78.487),
+    (17.412, 78.435),
+    (17.362, 78.475),
+    (28.6139, 77.209),
+    (28.62, 77.215),
+    (28.61, 77.205),
+    (28.625, 77.22),
+    (28.618, 77.212),
+}
+
+
+def _to_float(value: Any) -> Optional[float]:
+    try:
+        if value is None or value == "":
+            return None
+        converted = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(converted):
+        return None
+    return converted
+
+
+def _decimal_places(value: Any) -> int:
+    text = str(value)
+    if "e" in text.lower():
+        return 6
+    if "." not in text:
+        return 0
+    return len(text.rstrip("0").split(".")[1])
+
+
+def get_alert_safe_coordinates(lat: Any, lng: Any) -> Optional[Tuple[float, float]]:
+    """
+    Return coordinates only when they are safe to send in emergency messages.
+    Demo seed/default coords are useful for maps, but must not be mistaken for
+    a patient's live GPS location in Twilio alerts.
+    """
+    lat_float = _to_float(lat)
+    lng_float = _to_float(lng)
+    if lat_float is None or lng_float is None:
+        return None
+    if not (-90 <= lat_float <= 90 and -180 <= lng_float <= 180):
+        return None
+    if (round(lat_float, 6), round(lng_float, 6)) in DEMO_OR_PLACEHOLDER_COORDS:
+        return None
+    if _decimal_places(lat) < 4 or _decimal_places(lng) < 4:
+        return None
+    return lat_float, lng_float
 
 
 def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -83,9 +135,13 @@ def fetch_real_hospitals(lat: float, lng: float, radius_m: int = 10000, limit: O
             seen_names.add(name)
 
             # Get coordinates (node has lat/lng directly, way has center)
-            h_lat = element.get("lat") or element.get("center", {}).get("lat")
-            h_lng = element.get("lon") or element.get("center", {}).get("lon")
-            if not h_lat or not h_lng:
+            h_lat = element.get("lat")
+            if h_lat is None:
+                h_lat = element.get("center", {}).get("lat")
+            h_lng = element.get("lon")
+            if h_lng is None:
+                h_lng = element.get("center", {}).get("lon")
+            if h_lat is None or h_lng is None:
                 continue
 
             dist = haversine_distance(lat, lng, h_lat, h_lng)
@@ -151,8 +207,10 @@ HOSPITALS = FALLBACK_HOSPITALS
 
 def format_location_for_alert(lat: Optional[float], lng: Optional[float]) -> str:
     """Format location as Google Maps link for SMS/alerts."""
-    if lat is not None and lng is not None:
-        return f"https://www.google.com/maps?q={lat},{lng}"
+    coords = get_alert_safe_coordinates(lat, lng)
+    if coords:
+        safe_lat, safe_lng = coords
+        return f"https://www.google.com/maps?q={safe_lat},{safe_lng}"
     return "Location unknown"
 
 

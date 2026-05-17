@@ -14,6 +14,7 @@ from .db.database import engine, Base
 from .routes import users, doctors, vitals, alerts, agent_logs
 from .services.websocket import manager
 from .services.location import get_location_context
+from .services.location import get_alert_safe_coordinates
 from .engine.rule_engine import compute_risk
 from .agents.graph import agent_graph
 
@@ -97,7 +98,7 @@ async def system_status():
 async def get_nearby_hospitals(lat: float = 17.385, lng: float = 78.487, limit: int = 5):
     """Get nearest hospitals to a given location."""
     from .services.location import get_nearest_hospitals, HOSPITALS
-    if lat and lng:
+    if lat is not None and lng is not None:
         return get_nearest_hospitals(lat, lng, limit=limit)
     return HOSPITALS[:limit]
 
@@ -140,9 +141,9 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                     async with AsyncSessionLocal() as session:
                         result = await session.execute(select(User).where(User.id == user_id))
                         db_user = result.scalars().first()
-                        if db_user and "lat" in loc and "lng" in loc:
-                            db_user.location_lat = loc["lat"]
-                            db_user.location_lng = loc["lng"]
+                        coords = get_alert_safe_coordinates(loc.get("lat"), loc.get("lng"))
+                        if db_user and coords:
+                            db_user.location_lat, db_user.location_lng = coords
                             await session.commit()
             except json.JSONDecodeError:
                 pass

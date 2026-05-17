@@ -1,5 +1,4 @@
 import asyncio
-import bleak
 import logging
 from bleak import BleakScanner
 

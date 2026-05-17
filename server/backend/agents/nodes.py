@@ -18,6 +18,7 @@ from typing import TypedDict, Dict, Any, Optional, List
 
 from .llm import get_llm
 from ..services.emergency import emergency_service, try_fire, update_incident_state, unfire
+from ..services.location import get_alert_safe_coordinates
 from ..config import settings
 
 logger = logging.getLogger("vitalguard.agents")
@@ -600,11 +601,13 @@ async def _execute_decided_action(state: AgentState, action: str, patient_msg: s
         if try_fire("sms_patient"):
             hr = vitals.get("heart_rate") or vitals.get("bpm", "--")
             spo2 = vitals.get("spo2", "--")
-            location_line = ""
             lat = location.get("lat") or state.get("location_lat")
             lng = location.get("lng") or state.get("location_lng")
-            if lat and lng:
-                location_line = f"\nLocation: https://www.google.com/maps?q={lat},{lng}"
+            coords = get_alert_safe_coordinates(lat, lng)
+            location_line = ""
+            if coords:
+                safe_lat, safe_lng = coords
+                location_line = f"\nLive location: https://www.google.com/maps?q={safe_lat},{safe_lng}"
             sms_body = (
                 f"VitalGuard Alert\n"
                 f"{settings.PATIENT_NAME}\n"
@@ -671,9 +674,11 @@ async def _execute_emergency(state, vitals, risk, location, emergency_contacts_r
     # Location
     lat = location.get("lat") or state.get("location_lat")
     lng = location.get("lng") or state.get("location_lng")
+    coords = get_alert_safe_coordinates(lat, lng)
     location_line = ""
-    if lat and lng:
-        location_line = f"\nLocation: https://www.google.com/maps?q={lat},{lng}"
+    if coords:
+        safe_lat, safe_lng = coords
+        location_line = f"\nLive location: https://www.google.com/maps?q={safe_lat},{safe_lng}"
 
     # ── SMS ──
     if try_fire("sms_emergency"):

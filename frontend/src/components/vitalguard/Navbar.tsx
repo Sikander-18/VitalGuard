@@ -16,17 +16,15 @@ const Navbar = () => {
           <nav className="flex gap-1">
             <Link
               to="/user"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                pathname === "/user" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${pathname === "/user" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"
+                }`}
             >
               Patient
             </Link>
             <Link
               to="/admin"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                pathname === "/admin" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${pathname === "/admin" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"
+                }`}
             >
               <Shield className="w-4 h-4" />
               Admin

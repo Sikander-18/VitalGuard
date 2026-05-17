@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-_env_path = Path(__file__).resolve().parent.parent / ".env"
+_env_path = Path(__file__).resolve().parents[2] / ".env"
 
 logger = logging.getLogger("vitalguard.config")
 
@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     # ── Location (optional) ───────────────────────────────────────
     LOCATION_API_KEY: str = ""
 
-    model_config = SettingsConfigDict(env_file=str(_env_path))
+    model_config = SettingsConfigDict(env_file=str(_env_path), extra="ignore")
 
 
 settings = Settings()

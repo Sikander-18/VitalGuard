@@ -46,8 +46,8 @@ class UserBase(BaseModel):
     age: int
     gender: str
     phone: str
-    location_lat: float
-    location_lng: float
+    location_lat: Optional[float] = None
+    location_lng: Optional[float] = None
     emergency_contacts: str
     medical_history: Optional[str] = "{}"
 

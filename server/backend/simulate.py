@@ -11,6 +11,7 @@ Supports:
 """
 
 import random
+import os
 import math
 import json
 from enum import Enum
@@ -299,7 +300,7 @@ async def test_twilio():
     """Diagnostic: test SMS + Call directly."""
     from .services.emergency import emergency_service
     results = {
-        "twilio_enabled": __import__("os").environ.get("TWILIO_ENABLED", "true"),
+        "twilio_enabled": os.environ.get("TWILIO_ENABLED", "true"),
         "client_initialized": emergency_service.client is not None,
         "from_number": emergency_service.from_number,
     }
