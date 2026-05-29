@@ -75,3 +75,6 @@ components.json
 server/sms_log.txt
 *.log
 .ruff_cache/
+
+# ==================== Roadmap / Planning ====================
+final.md
