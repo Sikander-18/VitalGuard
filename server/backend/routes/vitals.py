@@ -6,6 +6,8 @@ Full pipeline: Rule Engine → Agent → DB → WebSocket → Alert creation
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy import func
+from datetime import datetime, timedelta
 from typing import List
 import json
 import time
@@ -181,3 +183,91 @@ async def read_vitals(user_id: str, limit: int = 30, db: AsyncSession = Depends(
     )
     vitals = result.scalars().all()
     return list(reversed(vitals))
+
+
+@router.get("/{user_id}/trends")
+async def get_vital_trends(user_id: str, range: str = "realtime", db: AsyncSession = Depends(get_db)):
+    """
+    Get aggregated vital trends:
+    - realtime: Last 30 raw readings (sliding window)
+    - day: Last 24 hours aggregated hourly
+    - week: Last 7 days aggregated daily
+    - month: Last 30 days aggregated daily
+    """
+    now = datetime.utcnow()
+    
+    if range == "realtime":
+        result = await db.execute(
+            select(models.Vital)
+            .where(models.Vital.user_id == user_id)
+            .order_by(models.Vital.timestamp.desc())
+            .limit(30)
+        )
+        vitals = result.scalars().all()
+        # Return as raw dicts mapping schemas.VitalResponse structure
+        return [{
+            "id": v.id,
+            "user_id": v.user_id,
+            "timestamp": v.timestamp,
+            "heart_rate": v.heart_rate,
+            "spo2": v.spo2,
+            "temperature": v.temperature,
+            "hrv": v.hrv,
+            "systolic": v.systolic,
+            "diastolic": v.diastolic,
+            "source": v.source,
+            "bpm": v.bpm,
+            "condition": v.condition,
+            "severity": v.severity,
+            "reasoning": v.reasoning,
+            "actions": v.actions,
+            "raw_json": v.raw_json
+        } for v in reversed(vitals)]
+        
+    elif range == "day":
+        cutoff = now - timedelta(hours=24)
+        group_by_format = "%Y-%m-%d %H:00:00"
+    elif range == "week":
+        cutoff = now - timedelta(days=7)
+        group_by_format = "%Y-%m-%d"
+    elif range == "month":
+        cutoff = now - timedelta(days=30)
+        group_by_format = "%Y-%m-%d"
+    else:
+        cutoff = now - timedelta(days=7)
+        group_by_format = "%Y-%m-%d"
+
+    stmt = (
+        select(
+            func.strftime(group_by_format, models.Vital.timestamp).label("time_bucket"),
+            func.avg(models.Vital.heart_rate).label("avg_hr"),
+            func.avg(models.Vital.spo2).label("avg_spo2"),
+            func.avg(models.Vital.systolic).label("avg_sys"),
+            func.avg(models.Vital.diastolic).label("avg_dia"),
+            func.avg(models.Vital.hrv).label("avg_hrv"),
+            func.avg(models.Vital.temperature).label("avg_temp")
+        )
+        .where(models.Vital.user_id == user_id)
+        .where(models.Vital.timestamp >= cutoff)
+        .group_by("time_bucket")
+        .order_by("time_bucket")
+    )
+    
+    result = await db.execute(stmt)
+    rows = result.all()
+    
+    trends = []
+    for r in rows:
+        trends.append({
+            "timestamp": r.time_bucket,
+            "heart_rate": round(r.avg_hr, 1) if r.avg_hr else 0.0,
+            "spo2": round(r.avg_spo2, 1) if r.avg_spo2 else 0.0,
+            "systolic": int(r.avg_sys) if r.avg_sys else 0,
+            "diastolic": int(r.avg_dia) if r.avg_dia else 0,
+            "hrv": round(r.avg_hrv, 1) if r.avg_hrv else 0.0,
+            "temperature": round(r.avg_temp, 1) if r.avg_temp else 36.6,
+            "user_id": user_id,
+            "source": "aggregated"
+        })
+        
+    return trends

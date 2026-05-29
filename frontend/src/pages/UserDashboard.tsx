@@ -130,6 +130,51 @@ const UserDashboard = () => {
     hrv: typeof h.hrv === "number" ? h.hrv : 0,
   })).reverse();
 
+  // ── Trend Ranges (Daily, Weekly, Monthly) ─────────────────────
+  const [trendRange, setTrendRange] = useState<"realtime" | "day" | "week" | "month">("realtime");
+  const [trendHistory, setTrendHistory] = useState<any[]>([]);
+  const [trendHistoryLoading, setTrendHistoryLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchTrendHistory = async () => {
+      if (!activeUser?.id || trendRange === "realtime") return;
+      setTrendHistoryLoading(true);
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/vitals/${activeUser.id}/trends?range=${trendRange}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          const formatTime = (ts: string) => {
+            const d = new Date(ts);
+            if (isNaN(d.getTime())) return ts;
+            if (trendRange === "day") {
+              return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+            }
+            return d.toLocaleDateString([], { month: "short", day: "numeric" });
+          };
+          
+          const mapped = data.map((h: any) => ({
+            time: formatTime(h.timestamp),
+            heartRate: h.heart_rate,
+            spo2: h.spo2,
+            bpSys: h.systolic,
+            bpDia: h.diastolic,
+            hrv: h.hrv,
+          }));
+          setTrendHistory(mapped);
+        }
+      } catch (e) {
+        console.error("Failed to fetch historical trends", e);
+      } finally {
+        setTrendHistoryLoading(false);
+      }
+    };
+    fetchTrendHistory();
+  }, [activeUser?.id, trendRange]);
+
+  const finalChartData = trendRange === "realtime" ? chartData : trendHistory;
+
   // ── Simulate Data ─────────────────────────────────────────────
   const [simLoading, setSimLoading] = useState<SimScenario | null>(null);
   const [simResult, setSimResult] = useState<SimResult | null>(null);
@@ -356,11 +401,44 @@ const UserDashboard = () => {
         <AgentTrace trace={agentTrace} />
 
         {/* Charts */}
-        <div className="space-y-3">
-          <h3 className="font-semibold text-foreground flex items-center gap-2">
-            <Activity className="w-4 h-4" /> Live Vitals Chart
-          </h3>
-          <GraphChart data={chartData.length > 0 ? chartData : []} />
+        <div className="space-y-3 bg-card border border-border/50 rounded-xl p-5 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+            <h3 className="font-semibold text-foreground flex items-center gap-2 text-sm sm:text-base">
+              <Activity className="w-4 h-4 text-primary" />
+              {trendRange === "realtime" ? "Real-Time Vitals Monitor" : `${trendRange.charAt(0).toUpperCase() + trendRange.slice(1)}ly Historical Trends`}
+            </h3>
+            
+            <div className="flex bg-secondary/40 p-0.5 rounded-lg border border-border/30 max-w-fit">
+              {([
+                { key: "realtime", label: "Live" },
+                { key: "day", label: "24h" },
+                { key: "week", label: "7d" },
+                { key: "month", label: "30d" },
+              ]).map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setTrendRange(t.key as any)}
+                  className={`text-[10px] sm:text-xs px-2.5 py-1 rounded-md font-medium transition-all duration-200 ${
+                    trendRange === t.key
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          {trendHistoryLoading ? (
+            <div className="h-[250px] flex flex-col items-center justify-center gap-2 border border-dashed border-border/30 rounded-lg bg-secondary/10">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              <span className="text-xs text-muted-foreground">Aggregating historical records...</span>
+            </div>
+          ) : (
+            <GraphChart data={finalChartData.length > 0 ? finalChartData : []} />
+          )}
         </div>
 
         {/* History */}
