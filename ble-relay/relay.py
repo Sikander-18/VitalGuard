@@ -171,6 +171,17 @@ def toggle_simulation():
         SIM_SCENARIO = data["scenario"].upper()
     return jsonify({"status": "ok", "simulation_mode": SIMULATION_MODE, "scenario": SIM_SCENARIO})
 
+@app.route("/set-user", methods=["POST"])
+def set_user():
+    global USER_ID
+    data = request.get_json() or {}
+    if "user_id" in data:
+        USER_ID = data["user_id"]
+        print(f"[RELAY] Active patient shifted dynamically to: {USER_ID}")
+        import sys
+        sys.stdout.flush()
+    return jsonify({"status": "ok", "user_id": USER_ID})
+
 @app.route("/start-hr", methods=["POST"])
 def start_hr():
     run_cmd_threadsafe(build_packet(5, 4, bytes([1])))

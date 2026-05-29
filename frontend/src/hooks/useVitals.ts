@@ -117,6 +117,19 @@ export const useVitals = (userId: string = "U002") => {
     if (userId) fetchHistory();
   }, [userId]);
 
+  // Dynamically map local BLE hardware relay active patient to current logged-in user
+  useEffect(() => {
+    if (userId) {
+      fetch("http://localhost:5000/set-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId })
+      }).catch(err => {
+        console.log("Local BLE relay not running on port 5000. Operating in cloud simulation mode.");
+      });
+    }
+  }, [userId]);
+
   // Polling logic (Relay Data from BLE hardware)
   useEffect(() => {
     const fetchVitals = async () => {
