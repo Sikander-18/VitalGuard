@@ -24,6 +24,33 @@ const DoctorAssignModal = ({ open, onClose, doctors, user }: DoctorAssignModalPr
     }, 1500);
   };
 
+  // Simple smart recommendation based on user conditions and doctor availability
+  const getRecommendedDoctorId = () => {
+    if (!user) return null;
+    const conds = String(user.medical_history || "").toLowerCase();
+    
+    // Heart Disease -> Cardiology
+    if (conds.includes("heart") || conds.includes("cardiac") || conds.includes("chest")) {
+      const doc = doctors.find(d => d.specialization?.toLowerCase() === "cardiology" && d.availability === "Available");
+      if (doc) return doc.id;
+    }
+    // Hypertension -> Cardiology or neurology
+    if (conds.includes("hypertension") || conds.includes("bp")) {
+      const doc = doctors.find(d => (d.specialization?.toLowerCase() === "cardiology" || d.specialization?.toLowerCase() === "neurology") && d.availability === "Available");
+      if (doc) return doc.id;
+    }
+    // Diabetes -> General Practice
+    if (conds.includes("diabetes") || conds.includes("diabetic") || conds.includes("sugar")) {
+      const doc = doctors.find(d => d.specialization?.toLowerCase() === "general practice" && d.availability === "Available");
+      if (doc) return doc.id;
+    }
+    
+    const available = doctors.find(d => d.availability === "Available");
+    return available ? available.id : null;
+  };
+
+  const recommendedId = getRecommendedDoctorId();
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-card rounded-2xl shadow-xl border border-border/50 w-full max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
@@ -57,7 +84,14 @@ const DoctorAssignModal = ({ open, onClose, doctors, user }: DoctorAssignModalPr
                 >
                   <Stethoscope className="w-4 h-4 text-primary shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground">{doc.name}</p>
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="text-sm font-medium text-foreground">{doc.name}</p>
+                      {doc.id === recommendedId && (
+                        <span className="text-[9px] bg-amber-500/10 text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded-full font-semibold animate-pulse">
+                          ✨ AI Recommended
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">{doc.specialization} • {doc.availability}</p>
                   </div>
                   {selectedDoc === doc.id && <Check className="w-4 h-4 text-primary shrink-0" />}
