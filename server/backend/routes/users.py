@@ -10,8 +10,17 @@ router = APIRouter()
 
 @router.post("/", response_model=schemas.UserResponse)
 async def create_user(user: schemas.UserCreate, db: AsyncSession = Depends(get_db)):
+    # 1. Create User
     db_user = models.User(**user.model_dump())
     db.add(db_user)
+    
+    # 2. Create corresponding PatientProfile baseline shell
+    db_profile = models.PatientProfile(
+        user_id=user.id,
+        conditions=user.medical_history
+    )
+    db.add(db_profile)
+    
     await db.commit()
     await db.refresh(db_user)
     return db_user

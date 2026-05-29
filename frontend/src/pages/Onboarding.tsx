@@ -34,12 +34,6 @@ const Onboarding = () => {
   });
   const [familyOtherCondition, setFamilyOtherCondition] = useState("");
   
-  const [baselines, setBaselines] = useState({
-    heartRate: "",
-    bloodPressure: "",
-    spo2: ""
-  });
-  
   const [contacts, setContacts] = useState([{ name: "", phone: "" }]);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
@@ -257,28 +251,9 @@ const Onboarding = () => {
             )}
           </section>
 
-          {/* Section 3: Baseline Vitals */}
+          {/* Section 3: Emergency Contacts */}
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold border-b pb-2">3. Baseline Vitals</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Normal Heart Rate</label>
-                <input placeholder="e.g. 70 bpm" value={baselines.heartRate} onChange={e => setBaselines({...baselines, heartRate: e.target.value})} className="w-full px-3 py-2 bg-secondary/50 border rounded-lg focus:ring-2 focus:ring-primary/20 outline-none" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Normal BP</label>
-                <input placeholder="e.g. 120/80" value={baselines.bloodPressure} onChange={e => setBaselines({...baselines, bloodPressure: e.target.value})} className="w-full px-3 py-2 bg-secondary/50 border rounded-lg focus:ring-2 focus:ring-primary/20 outline-none" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Normal SpO2</label>
-                <input placeholder="e.g. 98%" value={baselines.spo2} onChange={e => setBaselines({...baselines, spo2: e.target.value})} className="w-full px-3 py-2 bg-secondary/50 border rounded-lg focus:ring-2 focus:ring-primary/20 outline-none" />
-              </div>
-            </div>
-          </section>
-
-          {/* Section 4: Emergency Contacts */}
-          <section className="space-y-4">
-            <h2 className="text-xl font-semibold border-b pb-2">4. Emergency Contacts</h2>
+            <h2 className="text-xl font-semibold border-b pb-2">3. Emergency Contacts</h2>
             {contacts.map((contact, index) => (
               <div key={index} className="flex gap-4 items-start">
                 <div className="flex-1 space-y-1">
@@ -299,18 +274,18 @@ const Onboarding = () => {
             </button>
           </section>
 
-          {/* Section 5: Report Upload */}
+          {/* Section 4: Report Upload */}
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold border-b pb-2">5. Medical Reports <span className="text-muted-foreground font-normal text-sm">(Optional)</span></h2>
+            <h2 className="text-xl font-semibold border-b pb-2">4. Medical Reports <span className="text-muted-foreground font-normal text-sm">(Optional)</span></h2>
             <div className="border-2 border-dashed border-border rounded-lg p-6 flex justify-center items-center bg-secondary/20">
               <input type="file" accept=".pdf,image/*" className="text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
             </div>
           </section>
 
-          {/* Section 6: Location */}
+          {/* Section 5: Location */}
           <section className="space-y-4">
             <h2 className="text-xl font-semibold border-b pb-2 flex items-center justify-between">
-              <span>6. Default Location</span>
+              <span>5. Default Location</span>
               {location && <span className="text-sm font-normal text-green-500 flex items-center gap-1"><CheckCircle2 className="w-4 h-4"/> Captured</span>}
             </h2>
             <div className="flex items-center gap-4">

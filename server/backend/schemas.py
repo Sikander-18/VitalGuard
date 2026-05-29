@@ -50,6 +50,7 @@ class UserBase(BaseModel):
     location_lng: Optional[float] = None
     emergency_contacts: str
     medical_history: Optional[str] = "{}"
+    family_medical_history: Optional[str] = ""
 
 
 class UserCreate(UserBase):

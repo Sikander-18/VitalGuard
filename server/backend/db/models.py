@@ -24,6 +24,7 @@ class User(Base):
     location_lng = Column(Float)
     emergency_contacts = Column(Text, default="[]")        # JSON array [{name, phone}]
     medical_history = Column(Text, default="{}")            # JSON object
+    family_medical_history = Column(Text, default="")
     onboarded_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
