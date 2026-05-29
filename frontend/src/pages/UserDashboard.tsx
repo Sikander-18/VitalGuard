@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Heart, Wind, Gauge, Activity, Clock, ShieldCheck, ShieldAlert, MapPin, Navigation, Zap, FlaskConical, Loader2 } from "lucide-react";
 import Navbar from "@/components/vitalguard/Navbar";
 import VitalCard from "@/components/vitalguard/VitalCard";
@@ -28,6 +29,7 @@ interface SimResult {
 
 const UserDashboard = () => {
   const { user: authUser } = useAuth();
+  const navigate = useNavigate();
   const [userProfile, setUserProfile] = useState<any>(null);
   const [realDoctors, setRealDoctors] = useState<Doctor[]>([]);
   const [hospitals, setHospitals] = useState<any[]>([]);
@@ -53,13 +55,15 @@ const UserDashboard = () => {
             lng: data.location_lng,
             risk: "NORMAL"
           });
+        } else if (response.status === 404) {
+          navigate("/onboarding");
         }
       } catch (e) {
         console.error("Profile fetch error", e);
       }
     };
     fetchProfile();
-  }, [authUser?.uid]);
+  }, [authUser?.uid, navigate]);
 
   const activeUser = userProfile || currentUser;
   const userAlerts = alerts.filter((a) => a.userId === activeUser.id);

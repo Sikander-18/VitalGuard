@@ -61,7 +61,7 @@ const HISTORY_KEY = "vitalguard_history";
 const SYNCED_LOCATION_KEY = "vitalguard_synced_location";
 const MAX_HISTORY = 100;
 
-export const useVitals = (userId: string = "U002") => {
+export const useVitals = (userId?: string) => {
   const [currentVitals, setCurrentVitals] = useState<RealTimeVitals>({
     heartRate: "--",
     spo2: "--",
@@ -81,6 +81,26 @@ export const useVitals = (userId: string = "U002") => {
   const [locationStatus, setLocationStatus] = useState<LocationStatus>("PROMPT");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+
+  // Reset all states when userId changes to prevent mock data leakage
+  useEffect(() => {
+    setCurrentVitals({
+      heartRate: "--",
+      spo2: "--",
+      bloodPressure: "--/--",
+      hrv: "--",
+      temperature: "--",
+      timestamp: new Date().toISOString(),
+    });
+    setHistory([]);
+    setIsConnected(false);
+    setBackendConnected(false);
+    setAiClassification(null);
+    setRiskAssessment(null);
+    setAgentDecision(null);
+    setTrendData(null);
+    setAgentTrace([]);
+  }, [userId]);
 
   // Load history from Backend (primary) and localStorage (fallback)
   useEffect(() => {
