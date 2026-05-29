@@ -121,7 +121,7 @@ const Onboarding = () => {
 
     try {
       // POST to backend
-      const res = await fetch("http://localhost:8000/users/", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8000"}/users/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

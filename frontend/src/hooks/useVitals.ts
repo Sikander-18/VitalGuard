@@ -86,7 +86,7 @@ export const useVitals = (userId: string = "U002") => {
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const response = await fetch(`http://localhost:8000/vitals/${userId}`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8000"}/vitals/${userId}`);
         if (response.ok) {
           const data = await response.json();
           const mapped: RealTimeVitals[] = data.map((v: any) => ({
@@ -206,7 +206,7 @@ export const useVitals = (userId: string = "U002") => {
 
     const connect = () => {
       try {
-        const ws = new WebSocket(`ws://localhost:8000/ws/${userId}`);
+        const ws = new WebSocket(`${import.meta.env.VITE_WS_URL || "ws://localhost:8000"}/ws/${userId}`);
         wsRef.current = ws;
 
         ws.onopen = () => {

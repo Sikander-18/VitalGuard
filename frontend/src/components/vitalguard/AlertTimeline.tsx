@@ -1,7 +1,7 @@
 import { Clock, AlertTriangle, CheckCircle, Phone, Mail, Bell } from "lucide-react";
 
 interface Alert {
-  id?: number;
+  id?: number | string;
   userId?: string;
   timestamp?: string;
   risk_level?: string;

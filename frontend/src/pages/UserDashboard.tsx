@@ -41,7 +41,7 @@ const UserDashboard = () => {
     const fetchProfile = async () => {
       if (!authUser?.uid) return;
       try {
-        const response = await fetch(`http://localhost:8000/users/${authUser.uid}`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8000"}/users/${authUser.uid}`);
         if (response.ok) {
           const data = await response.json();
           setUserProfile({
@@ -68,7 +68,7 @@ const UserDashboard = () => {
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
-        const res = await fetch("http://localhost:8000/doctors/");
+        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8000"}/doctors/`);
         if (res.ok) {
           const data = await res.json();
           setRealDoctors(data.map((d: any) => ({
@@ -95,7 +95,7 @@ const UserDashboard = () => {
     const fetchHospitals = async () => {
       if (!liveLat || !liveLng) return;
       try {
-        const res = await fetch(`http://localhost:8000/hospitals/nearby?lat=${liveLat}&lng=${liveLng}&limit=5`);
+        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8000"}/hospitals/nearby?lat=${liveLat}&lng=${liveLng}&limit=5`);
         if (res.ok) {
           const data = await res.json();
           setHospitals(data.map((h: any, i: number) => ({
@@ -139,7 +139,7 @@ const UserDashboard = () => {
     setSimResult(null);
     try {
       const res = await fetch(
-        `http://localhost:8000/simulate/scenario?scenario=${scenario}&user_id=${activeUser.id}`,
+        `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/simulate/scenario?scenario=${scenario}&user_id=${activeUser.id}`,
         { method: "POST" }
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

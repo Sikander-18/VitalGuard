@@ -28,7 +28,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const response = await fetch("http://localhost:8000/users/");
+        const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8000"}/users/`);
         if (response.ok) {
           const data = await response.json();
           const mapped: User[] = data.map((u: any) => ({
@@ -85,7 +85,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const response = await fetch("http://localhost:8000/users/");
+        const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8000"}/users/`);
         if (response.ok) {
           const data = await response.json();
           const syncedLocationData = localStorage.getItem("vitalguard_synced_location");
