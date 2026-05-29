@@ -74,7 +74,7 @@ async def create_vital(vital: schemas.VitalCreate, db: AsyncSession = Depends(ge
         }
 
     # 1. Rule Engine
-    risk_assessment = compute_risk(vital_dict, patient_id=vital.user_id)
+    risk_assessment = compute_risk(vital_dict, patient_id=vital.user_id, patient_history=patient_history)
     risk_dict = risk_assessment.to_dict()
 
     # 2. Agent Pipeline (if anomaly detected OR risk > LOW)
@@ -159,6 +159,46 @@ async def create_vital(vital: schemas.VitalCreate, db: AsyncSession = Depends(ge
     db.add(db_vital)
     await db.commit()
     await db.refresh(db_vital)
+
+    # ── Baseline Learning Engine (Phase 4 & 6 Integration) ──────────
+    try:
+        count_result = await db.execute(
+            select(func.count(models.Vital.id)).where(models.Vital.user_id == vital.user_id)
+        )
+        vital_count = count_result.scalar() or 0
+
+        profile_result = await db.execute(
+            select(models.PatientProfile).where(models.PatientProfile.user_id == vital.user_id)
+        )
+        db_profile = profile_result.scalars().first()
+
+        if db_profile:
+            if vital_count < 15:
+                # LEARNING STATE: Compute Running Averages from real DB records
+                avg_result = await db.execute(
+                    select(
+                        func.avg(models.Vital.heart_rate).label("avg_hr"),
+                        func.avg(models.Vital.spo2).label("avg_spo2"),
+                        func.avg(models.Vital.hrv).label("avg_hrv"),
+                        func.avg(models.Vital.temperature).label("avg_temp")
+                    ).where(models.Vital.user_id == vital.user_id)
+                )
+                avg_row = avg_result.first()
+                if avg_row and avg_row.avg_hr:
+                    db_profile.baseline_hr = round(avg_row.avg_hr, 1)
+                    db_profile.baseline_spo2 = round(avg_row.avg_spo2, 1)
+                    db_profile.baseline_hrv = round(avg_row.avg_hrv, 1)
+                    db_profile.baseline_temp = round(avg_row.avg_temp, 1)
+                    await db.commit()
+                    logger.info(f"Learned patient baseline ({vital_count}/15 readings) for {vital.user_id}: HR={db_profile.baseline_hr}, SpO2={db_profile.baseline_spo2}")
+            else:
+                # EMA STATE: Slow moving target baseline adjustment
+                db_profile.baseline_hr = round(0.98 * db_profile.baseline_hr + 0.02 * vital_dict.get("heart_rate", 72), 1)
+                db_profile.baseline_spo2 = round(0.98 * db_profile.baseline_spo2 + 0.02 * vital_dict.get("spo2", 98), 1)
+                db_profile.baseline_hrv = round(0.98 * db_profile.baseline_hrv + 0.02 * vital_dict.get("hrv", 45), 1)
+                await db.commit()
+    except Exception as learn_err:
+        logger.error(f"Baseline learning engine failure: {learn_err}")
 
     # 4. WebSocket broadcast
     try:

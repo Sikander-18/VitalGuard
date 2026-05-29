@@ -37,6 +37,7 @@ const Onboarding = () => {
   const [contacts, setContacts] = useState([{ name: "", phone: "" }]);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
+  const [reportFile, setReportFile] = useState<File | null>(null);
 
   useEffect(() => {
     // Attempt to get location automatically on mount
@@ -123,6 +124,25 @@ const Onboarding = () => {
       
       if (!res.ok) {
         throw new Error("Failed to register user to backend");
+      }
+
+      // Upload medical report if provided for AI processing
+      if (reportFile) {
+        const fileFormData = new FormData();
+        fileFormData.append("file", reportFile);
+        try {
+          const uploadRes = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8000"}/users/${payload.id}/upload-report`, {
+            method: "POST",
+            body: fileFormData
+          });
+          if (uploadRes.ok) {
+            toast({ title: "Medical report processed by AI successfully!" });
+          } else {
+            console.error("AI report processing failed");
+          }
+        } catch (uploadErr) {
+          console.error("Report upload error", uploadErr);
+        }
       }
 
       localStorage.setItem("onboarding_done", "true");
@@ -277,8 +297,17 @@ const Onboarding = () => {
           {/* Section 4: Report Upload */}
           <section className="space-y-4">
             <h2 className="text-xl font-semibold border-b pb-2">4. Medical Reports <span className="text-muted-foreground font-normal text-sm">(Optional)</span></h2>
-            <div className="border-2 border-dashed border-border rounded-lg p-6 flex justify-center items-center bg-secondary/20">
-              <input type="file" accept=".pdf,image/*" className="text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
+            <div className="border-2 border-dashed border-border rounded-lg p-6 flex flex-col justify-center items-center bg-secondary/20 gap-2">
+              <input 
+                type="file" 
+                accept=".pdf,image/*,text/plain" 
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setReportFile(file);
+                }}
+                className="text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" 
+              />
+              {reportFile && <span className="text-xs text-green-500 font-medium">Selected: {reportFile.name}</span>}
             </div>
           </section>
 

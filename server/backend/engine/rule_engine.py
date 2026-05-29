@@ -189,9 +189,9 @@ def validate_vitals(vitals: Dict[str, Any]) -> tuple:
 
 # ── Main Risk Computation ─────────────────────────────────────────
 
-def compute_risk(vitals: Dict[str, Any], patient_id: str = "P001") -> RiskAssessment:
+def compute_risk(vitals: Dict[str, Any], patient_id: str = "P001", patient_history: Optional[Dict[str, Any]] = None) -> RiskAssessment:
     """
-    Deterministic risk computation — always runs, never fails.
+    Deterministic personalized risk computation — always runs, never fails.
     This is the safety-critical path: no LLM dependency.
     """
     # Validate
@@ -218,8 +218,74 @@ def compute_risk(vitals: Dict[str, Any], patient_id: str = "P001") -> RiskAssess
     )
     push_vital(patient_id, reading)
 
-    # MEWS
-    mews, factors = _mews_score(hr, spo2, temp, hrv, systolic)
+    # 1. Load personalized baselines & chronic conditions
+    baseline_hr = 72.0
+    baseline_spo2 = 98.0
+    baseline_hrv = 45.0
+    baseline_temp = 36.6
+    baseline_sys = 120
+    conditions = "[]"
+    
+    if patient_history:
+        baseline_hr = float(patient_history.get("baseline_hr") or 72.0)
+        baseline_spo2 = float(patient_history.get("baseline_spo2") or 98.0)
+        baseline_hrv = float(patient_history.get("baseline_hrv") or 45.0)
+        baseline_temp = float(patient_history.get("baseline_temp") or 36.6)
+        conditions = str(patient_history.get("conditions") or "[]")
+
+    # 2. Tighten safety tolerances dynamically based on chronic conditions (Wow factor!)
+    hr_safe_margin = 0.25      # 25% HR fluctuation standard
+    spo2_min_threshold = 93.0  # 93% SpO2 minimum standard
+    bp_sys_margin = 0.20       # 20% BP fluctuation standard
+    hrv_min_threshold = 20.0   # 20ms HRV minimum standard
+    
+    is_cardiac = "Heart Disease" in conditions
+    is_hypertensive = "Hypertension" in conditions
+    is_diabetic = "Diabetes" in conditions
+    
+    if is_cardiac:
+        hr_safe_margin = 0.12     # Cardiac patients: shrink safety buffer to 12% fluctuation!
+        hrv_min_threshold = 30.0  # Highly sensitive to autonomic stress
+    if is_hypertensive:
+        bp_sys_margin = 0.10      # Hypertensive patients: shrink BP safety margin to 10%!
+    if is_diabetic:
+        spo2_min_threshold = 95.0 # Diabetic/respiratory risk: higher target oxygen floor!
+
+    # 3. Calculate Personalized Score & Factors
+    factors = []
+    mews = 0
+
+    # Heart Rate Deviation
+    hr_dev = (hr - baseline_hr) / baseline_hr
+    if hr_dev > hr_safe_margin:
+        pts = 3 if hr_dev > (hr_safe_margin * 1.5) else 2
+        label = "critically high" if pts == 3 else "elevated"
+        factors.append(f"Heart rate {label} ({hr:.0f} bpm, +{hr_dev:.1%} deviation from baseline {baseline_hr:.0f}) +{pts}")
+        mews += pts
+    elif hr_dev < -0.25:
+        factors.append(f"Heart rate low ({hr:.0f} bpm, {hr_dev:.1%} deviation) +2")
+        mews += 2
+
+    # SpO2 Drop
+    spo2_drop = baseline_spo2 - spo2
+    if spo2 < spo2_min_threshold or spo2_drop > 4.0:
+        pts = 3 if (spo2 < (spo2_min_threshold - 3) or spo2_drop > 8.0) else 2
+        sev = "critically" if pts == 3 else "mildly"
+        factors.append(f"SpO2 {sev} low ({spo2:.1f}%, drop of {spo2_drop:.1f}% below baseline {baseline_spo2:.1f}) +{pts}")
+        mews += pts
+
+    # HRV Drop
+    if hrv < hrv_min_threshold:
+        factors.append(f"HRV critically reduced ({hrv:.1f} ms, baseline {baseline_hrv:.1f}) +2")
+        mews += 2
+
+    # Systolic BP Deviation
+    sys_dev = (systolic - baseline_sys) / baseline_sys
+    if abs(sys_dev) > bp_sys_margin:
+        pts = 3 if abs(sys_dev) > (bp_sys_margin * 1.5) else 2
+        direction = "high" if sys_dev > 0 else "low"
+        factors.append(f"BP Systolic {direction} ({systolic} mmHg, {sys_dev:+.1%} deviation from baseline {baseline_sys}) +{pts}")
+        mews += pts
 
     # MEWS → Risk score mapping
     score_map = {0: 5, 1: 18, 2: 32, 3: 50, 4: 65, 5: 75, 6: 82, 7: 88, 8: 92}
@@ -229,7 +295,7 @@ def compute_risk(vitals: Dict[str, Any], patient_id: str = "P001") -> RiskAssess
     flagged = len(factors)
     if flagged >= 3:
         base_score = min(100, int(base_score * 1.25))
-        factors.append("Multiple concurrent abnormalities — compounding risk")
+        factors.append("Multiple concurrent deviations — compounding risk")
     elif flagged == 2:
         base_score = min(100, int(base_score * 1.12))
 
