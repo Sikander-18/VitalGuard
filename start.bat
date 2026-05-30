@@ -13,7 +13,7 @@ timeout /t 1 /nobreak >nul
 
 :: 1. Backend (FastAPI + 5-Agent LangGraph + Rule Engine)
 echo [1/3] Starting Backend (FastAPI + AI Pipeline)...
-start "VitalGuard Backend" cmd /k "pushd server && set PYTHONPATH=. && python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000"
+start "VitalGuard Backend" cmd /k "set PYTHONPATH=. && python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000"
 
 timeout /t 3 /nobreak >nul
 

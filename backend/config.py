@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-_env_path = Path(__file__).resolve().parents[2] / ".env"
+_env_path = Path(__file__).resolve().parents[1] / ".env"
 
 logger = logging.getLogger("vitalguard.config")
 

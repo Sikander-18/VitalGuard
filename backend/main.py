@@ -11,7 +11,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from .db.database import engine, Base
-from .routes import users, doctors, vitals, alerts, agent_logs
+from .routes import users, doctors, vitals, alerts, agent_logs, notifications
 from .services.websocket import manager
 from .services.location import get_location_context
 from .services.location import get_alert_safe_coordinates
@@ -68,6 +68,7 @@ app.include_router(doctors.router, prefix="/doctors", tags=["Doctors"])
 app.include_router(vitals.router, prefix="/vitals", tags=["Vitals"])
 app.include_router(alerts.router, prefix="/alerts", tags=["Alerts"])
 app.include_router(agent_logs.router, prefix="/agent-logs", tags=["Agent Logs"])
+app.include_router(notifications.router, prefix="/notifications", tags=["Notifications"])
 
 from . import simulate
 app.include_router(simulate.router, prefix="/simulate", tags=["Simulate"])

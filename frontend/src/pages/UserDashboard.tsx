@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useNotifications } from "@/hooks/useNotifications";
 import { Heart, Wind, Gauge, Activity, Clock, ShieldCheck, ShieldAlert, MapPin, Navigation, Zap, FlaskConical, Loader2 } from "lucide-react";
 import Navbar from "@/components/vitalguard/Navbar";
 import VitalCard from "@/components/vitalguard/VitalCard";
@@ -64,6 +65,28 @@ const UserDashboard = () => {
     };
     fetchProfile();
   }, [authUser?.uid, navigate]);
+
+  // ── Push Notifications for Risk Escalation (Phase 9) ──────────
+  const { addNotification } = useNotifications(authUser?.uid);
+  const prevRiskLevel = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!riskAssessment || riskAssessment.level === "LOW" || riskAssessment.level === "NORMAL") {
+      prevRiskLevel.current = riskAssessment?.level || null;
+      return;
+    }
+
+    // Trigger only when risk level escalates to a new warning/critical level to prevent spam
+    if (riskAssessment.level !== prevRiskLevel.current) {
+      const severity = riskAssessment.level === "CRITICAL" ? "CRITICAL" : "FUTURE_ALERT";
+      const emoji = severity === "CRITICAL" ? "🚨 Emergency Incident" : "⚠️ Risk Escalation";
+      const title = `${emoji}: ${riskAssessment.level} Risk Level`;
+      const body = riskAssessment.summary || "A clinical deterioration warning has been triggered.";
+      
+      addNotification(title, body, severity);
+      prevRiskLevel.current = riskAssessment.level;
+    }
+  }, [riskAssessment, addNotification]);
 
   const activeUser = userProfile || currentUser;
   const userAlerts = alerts.filter((a) => a.userId === activeUser.id);

@@ -72,9 +72,11 @@ scratch/
 components.json
 
 # ==================== Runtime / Generated ====================
-server/sms_log.txt
+backend/sms_log.txt
 *.log
 .ruff_cache/
 
 # ==================== Roadmap / Planning ====================
 final.md
+VitalGuard_Test_Cardiology_Report.pdf
+VitalGuard_Test_Cardiology_Report_U002_2026-05-30_00-24-08.pdf

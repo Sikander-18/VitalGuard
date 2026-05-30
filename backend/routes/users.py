@@ -54,12 +54,28 @@ async def upload_medical_report(user_id: str, file: UploadFile = File(...), db: 
     """
     try:
         content = await file.read()
-        
-        # Try decoding as text
-        try:
-            report_text = content.decode("utf-8")
-        except UnicodeDecodeError:
-            report_text = f"Binary report uploaded: {file.filename}. Context: Patient diagnosed with chronic heart disease and hypertension."
+        # Extract text from report
+        report_text = ""
+        filename = file.filename.lower() if file.filename else ""
+        if filename.endswith(".pdf"):
+            try:
+                import io
+                import pypdf
+                reader = pypdf.PdfReader(io.BytesIO(content))
+                text_list = []
+                for page in reader.pages:
+                    text_list.append(page.extract_text() or "")
+                report_text = "\n".join(text_list).strip()
+                logger.info(f"Successfully extracted {len(report_text)} characters from PDF: {file.filename}")
+            except Exception as pdf_err:
+                logger.warning(f"pypdf extraction failed: {pdf_err}. Falling back to text decode.")
+
+        if not report_text:
+            # Try decoding as text
+            try:
+                report_text = content.decode("utf-8")
+            except UnicodeDecodeError:
+                report_text = f"Binary report uploaded: {file.filename}. Context: Patient diagnosed with chronic heart disease and hypertension."
             
         # Call Groq LLM (Llama 3.3) to extract structured conditions
         llm = get_llm()

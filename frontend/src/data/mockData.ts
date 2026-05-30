@@ -25,6 +25,8 @@ export interface User {
   risk: RiskLevel;
   lat: number;
   lng: number;
+  medical_history?: string;
+  family_medical_history?: string;
 }
 
 export interface Doctor {
